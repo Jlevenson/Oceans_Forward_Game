@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Oceans Forward Jeopardy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Figtree:wght@400;600;800&display=swap">
+<style>
+/* Layout: game-show board (6 categories x 5 values) over deep reef water; tiles stack per category on phones. Single dark look by choice. */
+:root{
+  --sea:#06242e; --sea-2:#0b3542; --tile:#0f4a5a; --tile-hi:#15627a;
+  --molasses:#e9a43c; --cane:#f4ead2; --muted:#9fc0c4; --coral:#ef6f5a; --leaf:#5fc28a;
+  --display:"Alfa Slab One", "Rockwell", Georgia, serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--sea);color:var(--cane)}
+body{font-family:var(--body);font-size:16px;line-height:1.45;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px;
+  background:radial-gradient(1200px 500px at 50% -10%, #0e4656 0%, transparent 70%), var(--sea);min-height:100%}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,5vw,48px);line-height:1;margin:0;color:var(--molasses);letter-spacing:.5px;text-wrap:balance}
+.sub{color:var(--muted);font-size:14px;margin-top:6px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid #2a6c7c;background:var(--sea-2);color:var(--cane);padding:8px 14px;font-weight:600}
+button:hover{border-color:var(--molasses)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--molasses);outline-offset:2px}
+button.on{background:var(--molasses);color:#2a1700;border-color:var(--molasses)}
+button.primary{background:var(--molasses);color:#2a1700;border-color:var(--molasses)}
+
+/* teams */
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.team{background:var(--sea-2);border:1px solid #1d5867;border-radius:10px;padding:10px 12px;display:grid;gap:2px;min-width:0}
+.team input{font:inherit;font-weight:800;background:transparent;border:0;color:var(--cane);width:100%;padding:0;text-transform:uppercase;letter-spacing:1px;font-size:13px}
+.team .score{font-family:var(--display);font-size:28px;color:var(--molasses);font-variant-numeric:tabular-nums}
+.team .score.neg{color:var(--coral)}
+
+/* board */
+.board{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.cat{display:contents}
+.cathead{background:var(--tile);border-radius:6px;padding:12px 8px;min-height:74px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:13px;line-height:1.2;color:var(--cane);border-bottom:3px solid var(--molasses)}
+.tile{background:var(--tile);border:0;border-radius:6px;min-height:76px;font-family:var(--display);font-size:clamp(22px,2.6vw,34px);color:var(--molasses);position:relative;text-shadow:0 2px 0 rgba(0,0,0,.35);transition:background .15s}
+.tile:hover{background:var(--tile-hi)}
+.tile.used{background:#0a2f39;color:transparent;text-shadow:none;cursor:default}
+.tile .flag{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--coral)}
+.tile .flag.ok{background:var(--leaf)}
+body:not(.host) .tile .flag{display:none}
+.tile.used .flag{display:none}
+
+@media (max-width:760px){
+  .board{grid-template-columns:1fr;gap:12px}
+  .cat{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .cathead{grid-column:1/-1;min-height:0;justify-content:flex-start;text-align:left;padding:8px 10px}
+  .tile{min-height:52px;font-size:18px}
+}
+
+.legend{color:var(--muted);font-size:13px;display:flex;gap:16px;flex-wrap:wrap}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+body:not(.host) .legend{display:none}
+
+/* clue overlay */
+.overlay{position:fixed;inset:0;background:rgba(2,16,21,.86);display:flex;align-items:center;justify-content:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:10}
+.card{background:var(--tile);border-radius:12px;width:min(820px,100%);max-height:100%;overflow:auto;padding:24px clamp(18px,4vw,40px);display:grid;gap:16px;border-top:4px solid var(--molasses)}
+.card .meta{display:flex;justify-content:space-between;gap:10px;font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:800}
+.card .meta b{color:var(--molasses);font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:0}
+.clue{font-size:clamp(22px,3.4vw,34px);font-weight:800;line-height:1.25;text-wrap:balance}
+.answer{background:var(--sea);border-radius:8px;padding:16px 18px;font-size:17px;line-height:1.55;white-space:pre-line;border-left:3px solid var(--leaf)}
+.answer.empty{border-left-color:var(--coral);color:var(--muted);font-style:italic}
+.answer .lbl{display:block;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--leaf);font-weight:800;margin-bottom:6px;font-style:normal}
+.answer.empty .lbl{color:var(--coral)}
+.editor{display:grid;gap:8px}
+.editor label{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:800}
+.editor textarea{font:inherit;font-size:15px;background:var(--sea);color:var(--cane);border:1px solid #2a6c7c;border-radius:8px;padding:10px;min-height:120px;resize:vertical;width:100%}
+.editor .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.status{font-size:13px;color:var(--muted)}
+.award{display:grid;gap:8px}
+.award .lbl{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:800}
+.award .row{display:flex;flex-wrap:wrap;gap:6px}
+.award button.plus{border-color:var(--leaf)}
+.award button.minus{border-color:var(--coral)}
+.actions{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+footer{color:var(--muted);font-size:13px;max-width:70ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Oceans Forward Jeopardy</h1>
+      <div class="sub">Rosalie Conservation Center &amp; Rosalie Bay Distilling</div>
+    </div>
+    <div class="controls">
+      <button id="hostBtn" type="button">Host mode</button>
+      <button id="resetBtn" type="button">New game</button>
+    </div>
+  </header>
+
+  <div class="teams" id="teams"></div>
+  <div class="legend"><span><i style="background:var(--coral)"></i>Needs a current answer before the game</span><span><i style="background:var(--leaf)"></i>Answer set</span></div>
+  <div class="board" id="board"></div>
+  <footer id="foot">Tap a point value to open a clue. Turn on Host mode to see which answers need updating (generator fuel, trap dates, the Nissan) and to edit the answer key.</footer>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="clueText">
+    <div class="meta"><span id="clueCat"></span><b id="clueVal"></b></div>
+    <div class="clue" id="clueText"></div>
+    <div id="answerBox" hidden></div>
+    <div class="editor" id="editor" hidden>
+      <label for="ansEdit">Answer key (host)</label>
+      <textarea id="ansEdit"></textarea>
+      <div class="row"><button class="primary" id="saveBtn" type="button">Save answer</button><span class="status" id="saveStatus"></span></div>
+    </div>
+    <div class="award" id="award" hidden>
+      <span class="lbl">Award points</span>
+      <div class="row" id="awardRow"></div>
+    </div>
+    <div class="actions">
+      <button id="revealBtn" class="primary" type="button">Reveal answer</button>
+      <button id="closeBtn" type="button">Back to board</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const VALUES=[200,400,600,800,1000];
+const CATS=[
+ {name:"Talk to the Guest",clues:[
+  {id:"a1",q:"Visitors show up at the front door. How do you engage them?",a:"Greet them right away and welcome them in: \"Welcome to Rosalie Bay! Have you been here before?\"\nAsk where they're from and what brought them, then give the one-line hook: \"We're a nonprofit distillery. Every bottle funds sea turtle, reef and whale work here in Dominica.\"\nGet them moving and using their senses: \"Smell that? That's cane fermenting.\" Then offer a tasting or a tour."},
+  {id:"a2",q:"A tourist says: \"I like whiskey. I don't really like rum.\" What do you say?",a:"Start them on the barrel-aged rum, neat. It spends time in oak like whiskey does, so it leads with wood and baking spice instead of sugar.\n\"If you like bourbon, try this one and tell me what you get.\" Save the liqueurs for after."},
+  {id:"a3",q:"\"Why can't I find this rum anywhere else?\"",a:"It's small batch and made right here: one 250-gallon still, one run a day, cane from local farmers. Most of it is sold at the distillery and in a few local shops.\nWe're a nonprofit, so buying it here is buying straight into the conservation work."},
+  {id:"a4",q:"Where does the profit from every bottle go?",a:"100% of profits fund marine conservation in Dominica: sea turtles, coral reefs and whales."},
+  {id:"a5",q:"How many people does RBD support in Dominica?",a:"We have 80 farmers, around 40 sea turtle patrollers, and 16 staff across all our programs.",hint:"Known: cane from about 80 local farmers across 20 villages, plus staff. Add the total you want the crew to say."}
+ ]},
+ {name:"In the Glass",clues:[
+  {id:"b1",q:"Walk me through how to taste rum.",a:"1. Look: color and legs.\n2. Smell: small sniffs with your mouth slightly open. Don't bury your nose in the glass.\n3. Mouthfeel: a small sip, roll it around. Thin or oily? Hot or smooth?\n4. First taste: what hits right away.\n5. Finish: what lingers after you swallow, and for how long.\nAdd a drop of water and smell again."},
+  {id:"b2",q:"Which two flavors show up most consistently when we taste our barrel-aged rum?",a:"Butterscotch, caramel, honey. Off-notes are nearly absent across our tasting sessions."},
+  {id:"b3",q:"Give the tasting notes on our barrel-aged spirit, and say why the barrel program matters.",a:"Led by oak and baking spice, clean with almost no off-notes. It's still young; our own tasters say it wants more time on oak.\nWhy it matters: the barrels are our long game. The oldest, Queen's Share cane filled April 2025, turns 2 in April 2027. Aged rum is the premium bottle that funds more conservation per sale."},
+  {id:"b4",q:"How long does a fermentation take, and how big are our fermenters?",a:"Five to six days, in two 1,500-gallon fermenters."},
+  {id:"b5",q:"When is the next barrel sampling, and how many barrels get sampled?",a:"The week of November 20, 2026. All 22 barrels. Barrels are sampled quarterly, but right now we're just doing it when we can get rum to experts."}
+ ]},
+ {name:"Sea Turtles",clues:[
+  {id:"c1",q:"When is turtle nesting season?",a:"Usually leatherbacks are here by mid-February, with hawksbills and greens coming after that.",hint:"Add the season dates DomSeTCO patrols use (leatherbacks first, hawksbills and greens later)."},
+  {id:"c2",q:"Why do we have a sea turtle hospital?",a:"Turtles here get hit by boats, tangled in fishing line and gear, and swallow plastic. The hospital at the Rosalie Conservation Center treats them and releases them back to sea. Every turtle returned is a breeding adult, or a future one, kept in the population."},
+  {id:"c3",q:"How many leatherbacks are left in Dominica?",a:"Depending on the year, just 4 to 6 leatherbacks nest in Dominica, the last of a small population.",hint:"Add the current nesting count from DomSeTCO. Talking point: leatherbacks are declining across the Northwest Atlantic, so every nesting female on our beaches counts."},
+  {id:"c4",q:"Which beaches do our turtle patrol teams cover?",a:"Londonderry, Woodford Hill and Marigot."},
+  {id:"c5",q:"We satellite-tagged nesting leatherbacks here. How many, and what did we learn?",a:"11 females, from Bout Sable/La Plaine and Rosalie Bay. After nesting they head far out into the open Atlantic, so protecting them means protection on the high seas, not only on our beaches."}
+ ]},
+ {name:"Reef & Whales",clues:[
+  {id:"d1",q:"Where are we restoring corals?",a:"Right now, our plans are to pick sites with minimal impacts in the SSMR and then expand as we can from there.",hint:"Add the restoration and nursery sites the crew should name."},
+  {id:"d2",q:"Why do we restore corals?",a:"Reefs break waves and protect the coast in storms, shelter the fish people catch, and bring in divers. Heat waves and disease have killed a lot of Caribbean coral, faster than reefs can recover on their own, so we grow and replant corals to speed recovery."},
+  {id:"d3",q:"How can divers help our conservation work here?",a:"Good buoyancy, and never touch or stand on coral.\nWear reef-safe sunscreen.\nReport bleached or sick coral, injured turtles and whale sightings to us.\nAsk about diving with our coral team.\nBuy a bottle: the profits fund the work."},
+  {id:"d4",q:"What do we do to protect whales?",a:"We maintain an automatic identification station to understand where ship traffic and whales co-occur.",hint:"Add the points you want covered: whale programs funded from rum profits, school outreach, the sperm whale reserve off the west coast, whale-watching rules."},
+  {id:"d5",q:"What education program are we looking to restart?",a:"Floating Classrooms, where kids can be a marine biologist for a day.",hint:"Name the program and what the crew should say about it (for example, school visits with the 300-pound life-size sperm whale model)."}
+ ]},
+ {name:"Around the Property",clues:[
+  {id:"e1",q:"When were the smoke detector batteries last changed?",a:"",hint:"Date from the maintenance log."},
+  {id:"e2",q:"When are the roach traps due to be changed?",a:"",hint:"Next change date."},
+  {id:"e3",q:"When was the bait on the rodent traps last checked?",a:"",hint:"Date of last check."},
+  {id:"e4",q:"When was the juicer last checked?",a:"",hint:"Date of last check."},
+  {id:"e5",q:"Are any security system components offline right now?",a:"",hint:"Check the security app before the game."}
+ ]},
+ {name:"Power, Water & Wheels",clues:[
+  {id:"f1",q:"How much fuel is in the generator right now?",a:"",hint:"Read the gauge before the game."},
+  {id:"w2",q:"When was the water filter UV bulb last checked or changed?",a:"",hint:"Date of last check or change."},
+  {id:"f3",q:"When is the Nissan due for an oil change?",a:"",hint:"Date or mileage."},
+  {id:"f2",q:"When were the tires last rotated on the Nissan?",a:"",hint:"Date and mileage."},
+  {id:"w3",q:"When is the water filter due to be replaced, and how far ahead should you confirm we have replacements on hand?",a:"",hint:"Add the due date, then: confirm replacements at least 60 days ahead. Filters and bulbs ship from off-island, so that leaves time to order."}
+ ]}
+];
+const ALL={};CATS.forEach((c,ci)=>c.clues.forEach((cl,ri)=>{cl.cat=c.name;cl.val=VALUES[ri];ALL[cl.id]=cl;}));
+
+let overrides={};           // id -> {text, updated}
+let state={used:{},teams:[{n:"Team 1",s:0},{n:"Team 2",s:0}]};
+let host=false, current=null, revealed=false, keyDoc=null, canWrite=false;
+
+function ans(id){const o=overrides[id];return (o&&typeof o.text==="string"&&o.text.trim())?o.text:ALL[id].a;}
+function lsGet(){try{const s=localStorage.getItem("rcc-jeop-v3");if(s)state=Object.assign(state,JSON.parse(s));}catch(e){}}
+function lsSet(){try{localStorage.setItem("rcc-jeop-v3",JSON.stringify(state));}catch(e){}}
+const $=id=>document.getElementById(id);
+
+function renderTeams(){
+  const t=$("teams");t.innerHTML="";
+  state.teams.forEach((tm,i)=>{
+    const d=document.createElement("div");d.className="team";
+    const inp=document.createElement("input");inp.id="team"+i;inp.value=tm.n;inp.setAttribute("aria-label","Team name");
+    inp.oninput=()=>{tm.n=inp.value;lsSet();};
+    const sc=document.createElement("div");sc.className="score"+(tm.s<0?" neg":"");sc.textContent=(tm.s<0?"−":"")+Math.abs(tm.s).toLocaleString()+" pts";
+    d.append(inp,sc);t.append(d);
+  });
+}
+function renderBoard(){
+  const b=$("board");b.innerHTML="";
+  CATS.forEach(c=>{
+    const col=document.createElement("div");col.className="cat";
+    const h=document.createElement("div");h.className="cathead";h.textContent=c.name;col.append(h);
+    c.clues.forEach(cl=>{
+      const btn=document.createElement("button");btn.type="button";btn.className="tile"+(state.used[cl.id]?" used":"");
+      btn.textContent=cl.val;btn.setAttribute("aria-label",c.name+" for "+cl.val+" points"+(state.used[cl.id]?", played":""));
+      const f=document.createElement("span");f.className="flag"+(ans(cl.id)?" ok":"");btn.append(f);
+      btn.onclick=()=>{if(!state.used[cl.id]||host)openClue(cl.id);};
+      col.append(btn);
+    });
+    b.append(col);
+  });
+}
+function renderAnswer(){
+  const box=$("answerBox"),a=ans(current);
+  box.hidden=!(revealed||host);
+  box.className="answer"+(a?"":" empty");box.innerHTML="";
+  const l=document.createElement("span");l.className="lbl";l.textContent=a?"Answer":"No answer set yet";
+  box.append(l,document.createTextNode(a||("Host: "+(ALL[current].hint||"fill this in before the game."))));
+}
+function openClue(id){
+  current=id;revealed=false;const cl=ALL[id];
+  $("clueCat").textContent=cl.cat;$("clueVal").textContent=cl.val+" pts";$("clueText").textContent=cl.q;
+  $("editor").hidden=!host;$("ansEdit").value=ans(id);$("ansEdit").placeholder=cl.hint||"";
+  $("saveStatus").textContent=host?(canWrite?(overrides[id]&&overrides[id].updated?"Last saved "+overrides[id].updated:""):"Saving is only available to the artifact's owner and editors."):"";
+  $("saveBtn").disabled=!canWrite;
+  $("revealBtn").hidden=host;
+  const row=$("awardRow");row.innerHTML="";
+  state.teams.forEach((tm,i)=>{
+    const p=document.createElement("button");p.type="button";p.className="plus";p.textContent="+ "+(tm.n||"Team "+(i+1));
+    p.onclick=()=>award(i,cl.val);
+    const m=document.createElement("button");m.type="button";m.className="minus";m.textContent="− "+(tm.n||"Team "+(i+1));m.setAttribute("aria-label","Take points from "+tm.n);
+    m.onclick=()=>{tm.s-=cl.val;lsSet();renderTeams();};
+    row.append(p,m);
+  });
+  $("award").hidden=true;
+  renderAnswer();
+  $("overlay").hidden=false;(host?$("ansEdit"):$("revealBtn")).focus();
+}
+function award(i,v){state.teams[i].s+=v;state.used[current]=1;lsSet();renderTeams();close();}
+function close(){if(current&&revealed){state.used[current]=1;lsSet();}$("overlay").hidden=true;current=null;renderBoard();}
+$("revealBtn").onclick=()=>{revealed=true;renderAnswer();$("award").hidden=false;$("revealBtn").hidden=true;};
+$("closeBtn").onclick=close;
+$("overlay").addEventListener("click",e=>{if(e.target.id==="overlay")close();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)close();});
+$("hostBtn").onclick=()=>{host=!host;document.body.classList.toggle("host",host);$("hostBtn").classList.toggle("on",host);$("hostBtn").textContent=host?"Host mode on":"Host mode";renderBoard();};
+let armed=false;
+$("resetBtn").onclick=()=>{
+  if(!armed){armed=true;$("resetBtn").textContent="Tap again to clear scores";setTimeout(()=>{armed=false;$("resetBtn").textContent="New game";},3000);return;}
+  armed=false;$("resetBtn").textContent="New game";state.used={};state.teams.forEach(t=>t.s=0);lsSet();renderTeams();renderBoard();
+};
+$("saveBtn").onclick=async()=>{
+  if(!keyDoc||!current)return;
+  const id=current,text=$("ansEdit").value.trim();
+  const today=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  const next=Object.assign({},overrides);
+  if(text&&text!==ALL[id].a)next[id]={text,updated:today};else delete next[id];
+  $("saveBtn").disabled=true;$("saveStatus").textContent="Saving…";
+  try{await keyDoc.set({answers:next});overrides=next;$("saveStatus").textContent="Saved on this device.";renderAnswer();}
+  catch(e){$("saveStatus").textContent="Couldn't save ("+(e&&e.code||"error")+"). Your browser may be blocking storage.";}
+  $("saveBtn").disabled=false;
+};
+
+const hot=window.claude&&window.claude.hot;
+function start(data){lsGet();renderTeams();renderBoard();}
+if(hot&&hot.snapshot)hot.snapshot(()=>({state}));
+hot&&hot.ready?hot.ready(start):start((hot&&hot.data)||{});
+
+canWrite=true;
+try{const o=localStorage.getItem("rcc-jeop-key");if(o)overrides=JSON.parse(o)||{};}catch(e){}
+keyDoc={set:async(d)=>{localStorage.setItem("rcc-jeop-key",JSON.stringify(d.answers));}};
+renderBoard();
+</script>
+
+</body>
+</html>
